@@ -22,7 +22,29 @@
             gap: 20px;
             align-items: flex-start;
         }
+<div class="main-container">
+    <div class="game-wrapper">
+        ...
+    </div>
+    <div class="leaderboard-wrapper">
+        ...
+    </div>
+</div>
 
+<div class="main-container">
+    <div class="game-wrapper">
+        <div class="status-bar"> ... </div>
+        <div id="board" oncontextmenu="return false;"></div>
+        
+        <div class="game-tip">
+            💡 <b>조작 방법 안내</b><br>
+            • 💻 <b>PC:</b> 마우스 우클릭으로 깃발(🚩)을 꽂을 수 있습니다.<br>
+            • 📱 <b>모바일:</b> 화면을 길게 꾹 누르면 깃발(🚩)이 표시됩니다.
+        </div>
+        </div>
+    
+    <div class="leaderboard-wrapper"> ... </div>
+</div>
         .game-wrapper {
             background-color: #bdc3c7;
             padding: 15px;
@@ -127,6 +149,22 @@
         #leaderboard-list li .rank { width: 40px; color: #e74c3c; font-weight: bold; }
         #leaderboard-list li .name { flex-grow: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         #leaderboard-list li .time { width: 50px; text-align: right; color: #2ecc71; }
+		/* --- 조작 안내 팁 스타일 추가 --- */
+.game-tip {
+    margin-top: 12px;
+    background-color: #34495e;
+    color: #ecf0f1;
+    padding: 10px 12px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    border: 2px inset #2c3e50;
+    font-family: sans-serif;
+}
+
+.game-tip b {
+    color: #f1c40f; /* 제목 부분은 강조되도록 노란색으로 처리 */
+}
     </style>
 </head>
 <body>
