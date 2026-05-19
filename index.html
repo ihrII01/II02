@@ -2,7 +2,9 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>완성형 지뢰찾기</title>
+    <title>완성형 지뢰찾기 + 리더보드</title>
+    <!-- Supabase JS Client CDN 추가 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body {
             background-color: #f0f4f8;
@@ -91,6 +93,13 @@
     </div>
 
     <script>
+        // --- Supabase 설정 ---
+        // TODO: 본인의 Supabase Project URL과 Anon Key로 변경하세요.
+        const SUPABASE_URL = 'https://vnbhyhcmsqqjyqeclhrx.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_I1J2FcYWA8BTBqktKF8KIA_YrtrGtsv';
+        
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         const ROWS = 10;
         const COLS = 10;
         const MINES = 12;
@@ -108,7 +117,6 @@
 
         // 게임 시작 함수
         function startGame() {
-            // 초기화
             boardEl.innerHTML = '';
             boardEl.style.gridTemplateColumns = `repeat(${COLS}, 30px)`;
             board = [];
@@ -119,7 +127,6 @@
             timerEl.innerText = 0;
             mineCountEl.innerText = MINES;
 
-            // 보드 배열 생성
             for (let r = 0; r < ROWS; r++) {
                 board[r] = [];
                 for (let c = 0; c < COLS; c++) {
@@ -133,7 +140,6 @@
                     };
                     
                     cell.el.classList.add('cell');
-                    // 클릭 이벤트 직접 바인딩
                     cell.el.addEventListener('click', () => leftClick(r, c));
                     cell.el.addEventListener('contextmenu', (e) => {
                         e.preventDefault();
@@ -145,7 +151,6 @@
                 }
             }
 
-            // 지뢰 배치
             let placed = 0;
             while (placed < MINES) {
                 let r = Math.floor(Math.random() * ROWS);
@@ -156,7 +161,6 @@
                 }
             }
 
-            // 숫자 계산
             for (let r = 0; r < ROWS; r++) {
                 for (let c = 0; c < COLS; c++) {
                     if (board[r][c].isMine) continue;
@@ -170,7 +174,6 @@
                 }
             }
 
-            // 타이머 시작
             timer = setInterval(() => {
                 seconds++;
                 timerEl.innerText = seconds;
@@ -207,7 +210,6 @@
                 cell.el.innerText = cell.count;
                 cell.el.classList.add('n' + cell.count);
             } else {
-                // 주변 탐색 (0일 때)
                 for (let dr = -1; dr <= 1; dr++) {
                     for (let dc = -1; dc <= 1; dc++) {
                         if (board[r+dr] && board[r+dr][c+dc]) reveal(r+dr, c+dc);
@@ -233,7 +235,6 @@
             gameOver = true;
             clearInterval(timer);
             
-            // 모든 지뢰 공개
             board.flat().forEach(cell => {
                 if (cell.isMine) {
                     cell.el.innerText = '💣';
@@ -241,12 +242,41 @@
                 }
             });
 
-            setTimeout(() => {
-                alert(win ? "승리했습니다! 🎉" : "지뢰를 밟았습니다! 💥");
+            setTimeout(async () => {
+                if (win) {
+                    const playerName = prompt("승리했습니다! 🎉 이름을 입력하여 리더보드에 등록하세요:", "지뢰마스터");
+                    
+                    if (playerName && playerName.trim() !== "") {
+                        try {
+                            // URL/KEY 미수정 시 경고
+                            if(SUPABASE_URL === 'YOUR_SUPABASE_URL') {
+                                alert("승리! 단, Supabase URL과 API key 설정이 필요합니다.");
+                                return;
+                            }
+
+                            // Supabase RPC 함수 호출
+                            const { data, error } = await supabaseClient.rpc('submit_score', {
+                                p_name: playerName,
+                                p_time: seconds,
+                                p_rows: ROWS,
+                                p_cols: COLS,
+                                p_mines: MINES
+                            });
+
+                            if (error) throw error;
+
+                            alert(`랭킹 등록 완료! 현재 ${data.rank}위 입니다. 🏆`);
+                        } catch (err) {
+                            console.error(err);
+                            alert("리더보드 등록 중 오류가 발생했습니다. (콘솔 로그 확인)");
+                        }
+                    }
+                } else {
+                    alert("지뢰를 밟았습니다! 💥");
+                }
             }, 100);
         }
 
-        // 버튼 이벤트 바인딩 및 시작
         resetBtn.addEventListener('click', startGame);
         window.onload = startGame;
 
