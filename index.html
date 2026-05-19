@@ -22,35 +22,6 @@
             gap: 20px;
             align-items: flex-start;
         }
-<div class="main-container">
-    <div class="game-wrapper">
-        ...
-    </div>
-    <div class="leaderboard-wrapper">
-        ...
-    </div>
-</div>
-
-<div class="main-container">
-    <div class="game-wrapper">
-        <div class="status-bar"> ... </div>
-        <div id="board" oncontextmenu="return false;"></div>
-        
-        <div class="game-tip">
-            💡 <b>조작 방법 안내</b><br>
-            • 💻 <b>PC:</b> 마우스 우클릭으로 깃발(🚩)을 꽂을 수 있습니다.<br>
-            • 📱 <b>모바일:</b> 화면을 길게 꾹 누르면 깃발(🚩)이 표시됩니다.
-        </div>
-        </div>
-    
-    <div class="leaderboard-wrapper"> ... </div>
-</div>
-        .game-wrapper {
-            background-color: #bdc3c7;
-            padding: 15px;
-            border: 4px outset #eee;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        }
 
         .status-bar {
             background-color: #2c3e50;
@@ -170,6 +141,35 @@
 <body>
 
     <div class="main-container">
+		<div class="main-container">
+    <div class="game-wrapper">
+        ...
+    </div>
+    <div class="leaderboard-wrapper">
+        ...
+    </div>
+</div>
+
+<div class="main-container">
+    <div class="game-wrapper">
+        <div class="status-bar"> ... </div>
+        <div id="board" oncontextmenu="return false;"></div>
+        
+        <div class="game-tip">
+            💡 <b>조작 방법 안내</b><br>
+            • 💻 <b>PC:</b> 마우스 우클릭으로 깃발(🚩)을 꽂을 수 있습니다.<br>
+            • 📱 <b>모바일:</b> 화면을 길게 꾹 누르면 깃발(🚩)이 표시됩니다.
+        </div>
+        </div>
+    
+    <div class="leaderboard-wrapper"> ... </div>
+</div>
+        .game-wrapper {
+            background-color: #bdc3c7;
+            padding: 15px;
+            border: 4px outset #eee;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
         <div class="game-wrapper">
             <div class="status-bar">
                 <div>남은 지뢰: <span id="mine-count">10</span></div>
