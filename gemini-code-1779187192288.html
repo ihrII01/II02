@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>완성형 지뢰찾기 + 실시간 리더보드</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            background-color: #f0f4f8;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: sans-serif;
+        }
+
+        /* 게임과 리더보드를 가로로 배치하기 위한 컨테이너 */
+        .main-container {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        .game-wrapper {
+            background-color: #bdc3c7;
+            padding: 15px;
+            border: 4px outset #eee;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .status-bar {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            border: 2px inset #7f8c8d;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+        }
+
+        #board {
+	    display: grid;
+	    background-color: #7f8c8d;
+	    border: 3px inset #eee;
+	    gap: 1px;
+	    /* [핵심] 칸들이 찌그러지지 않도록 고정 크기 지정 */
+	    width: max-content; 
+ 	   height: max-content;
+	}
+
+	.cell {
+	    width: 30px;
+	    height: 30px;
+	    background-color: #bdc3c7;
+	    border: 3px outset #eee;
+	    display: flex;
+	    align-items: center;
+	    justify-content: center;
+	    font-weight: bold;
+	    cursor: pointer;
+	    box-sizing: border-box;
+	    /* [추가] 글자가 선택되어 칸이 밀리는 현상 방지 */
+    user-select: none; 
+	}
+        .cell.revealed {
+            background-color: #ecf0f1;
+            border: 1px solid #bdc3c7;
+        }
+
+        .cell.mine { background-color: #e74c3c; }
+        .cell.flag { color: #e67e22; }
+
+        .n1 { color: #3498db; }
+        .n2 { color: #27ae60; }
+        .n3 { color: #e74c3c; }
+        .n4 { color: #8e44ad; }
+
+        button#reset-btn {
+            padding: 5px 15px;
+            cursor: pointer;
+            font-weight: bold;
+            background: #ecf0f1;
+            border: 2px outset #eee;
+        }
+        button#reset-btn:active { border-style: inset; }
+
+        /* --- 리더보드 스타일 추가 --- */
+        .leaderboard-wrapper {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border: 4px outset #34495e;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            width: 250px;
+            min-height: 340px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .leaderboard-wrapper h2 {
+            margin: 0 0 15px 0;
+            text-align: center;
+            font-size: 1.2rem;
+            border-bottom: 2px solid #7f8c8d;
+            padding-bottom: 5px;
+            color: #f1c40f;
+        }
+
+        #leaderboard-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        #leaderboard-list li {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px dashed #34495e;
+            font-size: 0.9rem;
+        }
+
+        #leaderboard-list li .rank { width: 40px; color: #e74c3c; font-weight: bold; }
+        #leaderboard-list li .name { flex-grow: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #leaderboard-list li .time { width: 50px; text-align: right; color: #2ecc71; }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <div class="game-wrapper">
+            <div class="status-bar">
+                <div>남은 지뢰: <span id="mine-count">10</span></div>
+                <button id="reset-btn">다시 시작</button>
+                <div>시간: <span id="timer">0</span></div>
+            </div>
+            <div id="board" oncontextmenu="return false;"></div>
+        </div>
+
+        <div class="leaderboard-wrapper">
+            <h2>🏆 명예의 전당 (TOP 10)</h2>
+            <ul id="leaderboard-list">
+                <li>데이터를 불러오는 중...</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // --- Supabase 설정 ---
+        // TODO: 본인의 Supabase Project URL과 Anon Key로 꼭 변경해 주세요!
+        const SUPABASE_URL = 'https://vnbhyhcmsqqjyqeclhrx.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_I1J2FcYWA8BTBqktKF8KIA_YrtrGtsv';
+        
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const ROWS = 10;
+        const COLS = 10;
+        const MINES = 12;
+
+        let board = [];
+        let revealedCount = 0;
+        let gameOver = false;
+        let timer = null;
+        let seconds = 0;
+
+        const boardEl = document.getElementById('board');
+        const mineCountEl = document.getElementById('mine-count');
+        const timerEl = document.getElementById('timer');
+        const resetBtn = document.getElementById('reset-btn');
+
+        // [추가] Supabase에서 상위 10명 기록 상시 가져오기 함수
+        async function loadLeaderboard() {
+            try {
+                if (SUPABASE_URL === 'YOUR_SUPABASE_URL') {
+                    document.getElementById('leaderboard-list').innerHTML = '<li>URL 설정을 해주세요.</li>';
+                    return;
+                }
+
+                const { data, error } = await supabaseClient
+                    .from('leaderboard')
+                    .select('player_name, clear_time')
+                    .eq('rows', ROWS)
+                    .eq('cols', COLS)
+                    .eq('mines', MINES)
+                    .order('clear_time', { ascending: true }) // 시간 짧은 순
+                    .limit(10); // 10명만
+
+                if (error) throw error;
+
+                const listEl = document.getElementById('leaderboard-list');
+                if (data.length === 0) {
+                    listEl.innerHTML = '<li>아직 등록된 기록이 없습니다.</li>';
+                    return;
+                }
+
+                listEl.innerHTML = data.map((row, index) => `
+                    <li>
+                        <span class="rank">${index + 1}위</span>
+                        <span class="name">${row.player_name}</span>
+                        <span class="time">${row.clear_time}초</span>
+                    </li>
+                `).join('');
+            } catch (err) {
+                console.error("리더보드 로드 실패:", err);
+                document.getElementById('leaderboard-list').innerHTML = '<li>로딩 실패 (콘솔 확인)</li>';
+            }
+        }
+
+        // 게임 시작 함수
+        function startGame() {
+            boardEl.innerHTML = '';
+            boardEl.style.gridTemplateColumns = `repeat(${COLS}, 30px)`;
+            board = [];
+            revealedCount = 0;
+            gameOver = false;
+            seconds = 0;
+            clearInterval(timer);
+            timerEl.innerText = 0;
+            mineCountEl.innerText = MINES;
+
+            // 게임 시작 및 리셋할 때 리더보드 실시간 조회
+            loadLeaderboard();
+
+            for (let r = 0; r < ROWS; r++) {
+                board[r] = [];
+                for (let c = 0; c < COLS; c++) {
+                    const cell = {
+                        r, c,
+                        isMine: false,
+                        isRevealed: false,
+                        isFlagged: false,
+                        count: 0,
+                        el: document.createElement('div')
+                    };
+                    
+                    cell.el.classList.add('cell');
+                    cell.el.addEventListener('click', () => leftClick(r, c));
+                    cell.el.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                        rightClick(r, c);
+                    });
+
+                    boardEl.appendChild(cell.el);
+                    board[r][c] = cell;
+                }
+            }
+
+            let placed = 0;
+            while (placed < MINES) {
+                let r = Math.floor(Math.random() * ROWS);
+                let c = Math.floor(Math.random() * COLS);
+                if (!board[r][c].isMine) {
+                    board[r][c].isMine = true;
+                    placed++;
+                }
+            }
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (board[r][c].isMine) continue;
+                    let count = 0;
+                    for (let dr = -1; dr <= 1; dr++) {
+                        for (let dc = -1; dc <= 1; dc++) {
+                            if (board[r+dr] && board[r+dr][c+dc] && board[r+dr][c+dc].isMine) count++;
+                        }
+                    }
+                    board[r][c].count = count;
+                }
+            }
+
+            timer = setInterval(() => {
+                seconds++;
+                timerEl.innerText = seconds;
+            }, 1000);
+        }
+
+        function leftClick(r, c) {
+            if (gameOver) return;
+            const cell = board[r][c];
+            if (cell.isRevealed || cell.isFlagged) return;
+
+            if (cell.isMine) {
+                endGame(false);
+                return;
+            }
+
+            reveal(r, c);
+
+            if (revealedCount === (ROWS * COLS) - MINES) {
+                endGame(true);
+            }
+        }
+
+        function reveal(r, c) {
+            const cell = board[r][c];
+            if (cell.isRevealed || cell.isFlagged) return;
+
+            cell.isRevealed = true;
+            cell.el.classList.add('revealed');
+            cell.el.style.border = '1px solid #ccc';
+            revealedCount++;
+
+            if (cell.count > 0) {
+                cell.el.innerText = cell.count;
+                cell.el.classList.add('n' + cell.count);
+            } else {
+                for (let dr = -1; dr <= 1; dr++) {
+                    for (let dc = -1; dc <= 1; dc++) {
+                        if (board[r+dr] && board[r+dr][c+dc]) reveal(r+dr, c+dc);
+                    }
+                }
+            }
+        }
+
+        function rightClick(r, c) {
+            if (gameOver) return;
+            const cell = board[r][c];
+            if (cell.isRevealed) return;
+
+            cell.isFlagged = !cell.isFlagged;
+            cell.el.innerText = cell.isFlagged ? '🚩' : '';
+            cell.el.classList.toggle('flag');
+            
+            const flags = document.querySelectorAll('.flag').length;
+            mineCountEl.innerText = MINES - flags;
+        }
+
+        function endGame(win) {
+            gameOver = true;
+            clearInterval(timer);
+            
+            board.flat().forEach(cell => {
+                if (cell.isMine) {
+                    cell.el.innerText = '💣';
+                    cell.el.classList.add('mine');
+                }
+            });
+
+            setTimeout(async () => {
+                if (win) {
+                    const playerName = prompt("승리했습니다! 🎉 이름을 입력하여 리더보드에 등록하세요:", "지뢰마스터");
+                    
+                    if (playerName && playerName.trim() !== "") {
+                        try {
+                            if(SUPABASE_URL === 'YOUR_SUPABASE_URL') {
+                                alert("승리! 단, Supabase URL과 API key 설정이 필요합니다.");
+                                return;
+                            }
+
+                            const { data, error } = await supabaseClient.rpc('submit_score', {
+                                p_name: playerName,
+                                p_time: seconds,
+                                p_rows: ROWS,
+                                p_cols: COLS,
+                                p_mines: MINES
+                            });
+
+                            if (error) throw error;
+
+                            alert(`랭킹 등록 완료! 현재 ${data.rank}위 입니다. 🏆`);
+                            
+                            // 점수 등록 후 리더보드 즉시 새로고침
+                            loadLeaderboard();
+                        } catch (err) {
+                            console.error(err);
+                            alert("리더보드 등록 중 오류가 발생했습니다.");
+                        }
+                    }
+                } else {
+                    alert("지뢰를 밟았습니다! 💥");
+                }
+            }, 100);
+        }
+
+        resetBtn.addEventListener('click', startGame);
+        window.onload = startGame;
+
+    </script>
+</body>
+</html>
