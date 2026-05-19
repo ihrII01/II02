@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>완성형 지뢰찾기 + 실시간 리더보드</title>
+    <!-- Supabase JS Client 라이브러리 추가 -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body {
@@ -23,6 +24,13 @@
             align-items: flex-start;
         }
 
+        .game-wrapper {
+            background-color: #bdc3c7;
+            padding: 15px;
+            border: 4px outset #eee;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
         .status-bar {
             background-color: #2c3e50;
             color: #ecf0f1;
@@ -37,29 +45,30 @@
         }
 
         #board {
-	    display: grid;
-	    background-color: #7f8c8d;
-	    border: 3px inset #eee;
-	    gap: 1px;
-	    /* [핵심] 칸들이 찌그러지지 않도록 고정 크기 지정 */
-	    width: max-content; 
- 	   height: max-content;
-	}
+            display: grid;
+            background-color: #7f8c8d;
+            border: 3px inset #eee;
+            gap: 1px;
+            /* [핵심] 칸들이 찌그러지지 않도록 고정 크기 지정 */
+            width: max-content; 
+            height: max-content;
+        }
 
-	.cell {
-	    width: 30px;
-	    height: 30px;
-	    background-color: #bdc3c7;
-	    border: 3px outset #eee;
-	    display: flex;
-	    align-items: center;
-	    justify-content: center;
-	    font-weight: bold;
-	    cursor: pointer;
-	    box-sizing: border-box;
-	    /* [추가] 글자가 선택되어 칸이 밀리는 현상 방지 */
-    user-select: none; 
-	}
+        .cell {
+            width: 30px;
+            height: 30px;
+            background-color: #bdc3c7;
+            border: 3px outset #eee;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+            box-sizing: border-box;
+            /* [추가] 글자가 선택되어 칸이 밀리는 현상 방지 */
+            user-select: none; 
+        }
+
         .cell.revealed {
             background-color: #ecf0f1;
             border: 1px solid #bdc3c7;
@@ -120,56 +129,29 @@
         #leaderboard-list li .rank { width: 40px; color: #e74c3c; font-weight: bold; }
         #leaderboard-list li .name { flex-grow: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         #leaderboard-list li .time { width: 50px; text-align: right; color: #2ecc71; }
-		/* --- 조작 안내 팁 스타일 추가 --- */
-.game-tip {
-    margin-top: 12px;
-    background-color: #34495e;
-    color: #ecf0f1;
-    padding: 10px 12px;
-    border-radius: 4px;
-    font-size: 0.85rem;
-    line-height: 1.5;
-    border: 2px inset #2c3e50;
-    font-family: sans-serif;
-}
 
-.game-tip b {
-    color: #f1c40f; /* 제목 부분은 강조되도록 노란색으로 처리 */
-}
+        /* --- 조작 안내 팁 스타일 추가 --- */
+        .game-tip {
+            margin-top: 12px;
+            background-color: #34495e;
+            color: #ecf0f1;
+            padding: 10px 12px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            border: 2px inset #2c3e50;
+            font-family: sans-serif;
+        }
+
+        .game-tip b {
+            color: #f1c40f;
+        }
     </style>
 </head>
 <body>
 
     <div class="main-container">
-		<div class="main-container">
-    <div class="game-wrapper">
-        ...
-    </div>
-    <div class="leaderboard-wrapper">
-        ...
-    </div>
-</div>
-
-<div class="main-container">
-    <div class="game-wrapper">
-        <div class="status-bar"> ... </div>
-        <div id="board" oncontextmenu="return false;"></div>
-        
-        <div class="game-tip">
-            💡 <b>조작 방법 안내</b><br>
-            • 💻 <b>PC:</b> 마우스 우클릭으로 깃발(🚩)을 꽂을 수 있습니다.<br>
-            • 📱 <b>모바일:</b> 화면을 길게 꾹 누르면 깃발(🚩)이 표시됩니다.
-        </div>
-        </div>
-    
-    <div class="leaderboard-wrapper"> ... </div>
-</div>
-        .game-wrapper {
-            background-color: #bdc3c7;
-            padding: 15px;
-            border: 4px outset #eee;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        }
+        <!-- 왼쪽: 게임판 -->
         <div class="game-wrapper">
             <div class="status-bar">
                 <div>남은 지뢰: <span id="mine-count">10</span></div>
@@ -177,8 +159,16 @@
                 <div>시간: <span id="timer">0</span></div>
             </div>
             <div id="board" oncontextmenu="return false;"></div>
+            
+            <!-- 조작 방법 안내 문구 추가 -->
+            <div class="game-tip">
+                💡 <b>조작 방법 안내</b><br>
+                • 💻 <b>PC:</b> 마우스 우클릭으로 깃발(🚩)을 꽂을 수 있습니다.<br>
+                • 📱 <b>모바일:</b> 화면을 길게 꾹 누르면 깃발(🚩)이 표시됩니다.
+            </div>
         </div>
 
+        <!-- 右쪽: 실시간 리더보드 판 -->
         <div class="leaderboard-wrapper">
             <h2>🏆 명예의 전당 (TOP 10)</h2>
             <ul id="leaderboard-list">
@@ -189,7 +179,6 @@
 
     <script>
         // --- Supabase 설정 ---
-        // TODO: 본인의 Supabase Project URL과 Anon Key로 꼭 변경해 주세요!
         const SUPABASE_URL = 'https://vnbhyhcmsqqjyqeclhrx.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZuYmh5aGNtc3FxanlxZWNsaHJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNzA3MjcsImV4cCI6MjA5NDc0NjcyN30.rq_aX7EYxUiDgMpQrv_Uda1jtEhIVCDU5EcpwKz4lgY';
         
@@ -210,7 +199,7 @@
         const timerEl = document.getElementById('timer');
         const resetBtn = document.getElementById('reset-btn');
 
-        // [추가] Supabase에서 상위 10명 기록 상시 가져오기 함수
+        // Supabase에서 상위 10명 기록 상시 가져오기 함수
         async function loadLeaderboard() {
             try {
                 if (SUPABASE_URL === 'YOUR_SUPABASE_URL') {
@@ -224,8 +213,8 @@
                     .eq('rows', ROWS)
                     .eq('cols', COLS)
                     .eq('mines', MINES)
-                    .order('clear_time', { ascending: true }) // 시간 짧은 순
-                    .limit(10); // 10명만
+                    .order('clear_time', { ascending: true })
+                    .limit(10);
 
                 if (error) throw error;
 
@@ -272,14 +261,42 @@
                         isRevealed: false,
                         isFlagged: false,
                         count: 0,
-                        el: document.createElement('div')
+                        el: document.createElement('div'),
+                        touchTimeout: null // 모바일 롱터치 타이머용
                     };
                     
                     cell.el.classList.add('cell');
+                    
+                    // 1) PC 클릭 이벤트
                     cell.el.addEventListener('click', () => leftClick(r, c));
                     cell.el.addEventListener('contextmenu', (e) => {
                         e.preventDefault();
                         rightClick(r, c);
+                    });
+
+                    // 2) 모바일 롱터치(꾹 누르기) 대응 이벤트 추가
+                    cell.el.addEventListener('touchstart', (e) => {
+                        if (gameOver || cell.isRevealed) return;
+                        // 600밀리초(0.6초) 동안 누르고 있으면 우클릭(깃발) 동작 실행
+                        cell.touchTimeout = setTimeout(() => {
+                            rightClick(r, c);
+                            // 진동 지원 기기인 경우 살짝 진동 피드백 (선택사항)
+                            if (navigator.vibrate) navigator.vibrate(50);
+                        }, 600);
+                    }, { passive: true });
+
+                    cell.el.addEventListener('touchend', () => {
+                        // 0.6초가 되기 전에 손을 떼면 타이머 취소 (일반 클릭으로 처리되도록)
+                        if (cell.touchTimeout) {
+                            clearTimeout(cell.touchTimeout);
+                        }
+                    });
+
+                    cell.el.addEventListener('touchmove', () => {
+                        // 누른 채로 손가락을 움직여 스크롤 할 때도 타이머 취소
+                        if (cell.touchTimeout) {
+                            clearTimeout(cell.touchTimeout);
+                        }
                     });
 
                     boardEl.appendChild(cell.el);
@@ -401,7 +418,6 @@
 
                             alert(`랭킹 등록 완료! 현재 ${data.rank}위 입니다. 🏆`);
                             
-                            // 점수 등록 후 리더보드 즉시 새로고침
                             loadLeaderboard();
                         } catch (err) {
                             console.error(err);
